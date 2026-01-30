@@ -22,80 +22,34 @@
     return;
   }
 
-  window.API_KEY = 'GEMINI_API_KEY';
-  window.GEMINI_API_KEY = 'GEMINI_API_KEY';
-  window.process = window.process || {};
-  window.process.env = window.process.env || {};
-  window.process.env.API_KEY = window.API_KEY;
-  window.process.env.GEMINI_API_KEY = window.GEMINI_API_KEY;
+  async function getGeminiResponse(prompt) {
+  const API_KEY = "TA_VRAIE_CLE_API_ICI"; // clé Gemini
 
-  const bootstrapChannel = new Promise((resolve) => {
-    window.addEventListener('message', (event) => {
-      if (event.origin !== 'https://aistudio.google.com') {
-        return;
-      }
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${API_KEY}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [{ text: prompt }]
+          }
+        ]
+      })
+    }
+  );
 
-      if (event.data.type === 'bootstrap') {
-        resolve({
-          port: event.ports[0],
-          urlPatterns:
-              event.data.urlPatterns.map((pattern) => new RegExp(pattern)),
-        });
-      }
-    });
-  });
+  const data = await response.json();
 
-  window.aistudio = window.aistudio || {
-    handleFullscreenEsc: true,
-    getHostUrl: async function() {
-      const hostPort = (await bootstrapChannel).port;
-      return new Promise((resolve) => {
-        const channel = new MessageChannel();
-        hostPort.postMessage(
-            {type: 'get_host_url'},
-            [channel.port2]);
-        const port = channel.port1;
-        port.onmessage = (message) => {
-          resolve(message.data.url);
-        };
-      });
-    },
-    hasSelectedApiKey: async function() {
-      const hostPort = (await bootstrapChannel).port;
-      return new Promise((resolve) => {
-        const channel = new MessageChannel();
-        hostPort.postMessage(
-            {type: 'has_selected_api_key'},
-            [channel.port2]);
-        const port = channel.port1;
-        port.onmessage = (message) => {
-          resolve(message.data);
-        };
-      });
-    },
-    openSelectKey: async function() {
-      const hostPort = (await bootstrapChannel).port;
-      const channel = new MessageChannel();
-      hostPort.postMessage(
-          {type: 'open_select_key'},
-          [channel.port2]);
-    },
-    getModelQuota: async function(model) {
-      const hostPort = (await bootstrapChannel).port;
-      return new Promise((resolve) => {
-        const channel = new MessageChannel();
-        hostPort.postMessage(
-            {type: 'get_model_quota', model},
-            [channel.port2]);
-        const port = channel.port1;
-        port.onmessage = (message) => {
-          resolve(message.data.modelQuota);
-        };
-      });
-    },
-  };
+  if (!data.candidates) {
+    return "Erreur : aucune réponse de l’IA.";
+  }
 
-  const nativeFetch = window.fetch;
+  return data.candidates[0].content.parts[0].text;
+}
 
   /**
    * @param {string | URL | Request} resource The resource of the fetch request.
